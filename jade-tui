@@ -25,18 +25,12 @@ if [[ $CONTINUE != "true" ]]; then
 fi
 
 timezone=$(timedatectl list-timezones | gum filter --placeholder "select a timezone")
-echo "timezone: $timezone"
-
 keymap=$(localectl list-keymaps | gum filter --placeholder "select a keymap")
-echo "keymap: $keymap"
-
 locale=$(cat locales | gum filter --placeholder "select a locale")
-echo "locale: $locale"
 
 clear
 gum style --border normal --margin "1" --padding "1 2" --border-foreground 212 "Please enter your username"
 username=$(gum input --placeholder "Please enter your username")
-echo "username: $username"
 
 clear
 gum style --border normal --margin "1" --padding "1 2" --border-foreground 212 "Select a default shell"
@@ -52,7 +46,6 @@ while [[ "$matches" == "false" ]]; do
 		gum style --border normal --margin "1" --padding "1 2" --border-foreground 212 "Now enter your password"
 	fi
 	password=$(gum input --password --placeholder "Please enter a password")
-	echo "password: $password"
 	clear
 	gum style --border normal --margin "1" --padding "1 2" --border-foreground 212 "Verify your password"
 	password_verif=$(gum input --password --placeholder "Type your password again")
@@ -68,7 +61,6 @@ clear
 different_root_password=true
 gum confirm "$(gum style --border normal --margin '1' --padding '1 2' --border-foreground 212 'Use same password for root?')" && different_root_password=false
 if [[ $different_root_password != "true" ]]; then
-	echo "same password as user"
 	root_password=${password}
 else
 	root_matches="false"
@@ -81,7 +73,6 @@ else
 			gum style --border normal --margin "1" --padding "1 2" --border-foreground 212 "Now enter your root password"
 		fi
 		root_password=$(gum input --password --placeholder "Please enter a root password")
-		echo "root password: $root_password"
 		clear
 		gum style --border normal --margin "1" --padding "1 2" --border-foreground 212 "Verify your root password"
 		root_password_verif=$(gum input --password --placeholder "Type your root password again")
@@ -101,13 +92,11 @@ hostname=$(gum input --placeholder "Please enter a hostname")
 clear
 gum style --border normal --margin "1" --padding "1 2" --border-foreground 212 "Please select the disk to install to" "$(gum style --foreground 212 'WARNING: This will erease the whole disk')"
 disk_dev=$(lsblk -pdo name | grep -v zram | grep -v NAME | grep -v loop | grep -v sr | gum choose --limit 1)
-echo "disk: ${disk_dev}"
 disk=$(echo ${disk_dev} | awk '{ print substr ($0, 6 ) }')
 
 clear
 gum style --border normal --margin "1" --padding "1 2" --border-foreground 212 "Select a desktop to use"
 desktop=$(gum choose --limit 1 gnome kde budgie mate cinnamon lxqt sway i3gaps herbstluftwm awesome bspwm)
-echo "desktop: ${desktop}"
 
 clear
 gum style --border normal --margin "1" --padding "1 2" --border-foreground 212 "Some miscellaneous settings" "Use space to enable/disable"
@@ -130,7 +119,6 @@ if [[ $misc_settings == *"flatpak"* ]]; then
 fi
 
 is_uefi=$([ -d /sys/firmware/efi ] && echo true || echo false)
-echo "efi: ${is_uefi}"
 if [[ $is_uefi == "true" ]]; then
  	grub_type="grub-efi"
 	grub_location="/boot/efi"
