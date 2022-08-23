@@ -1,0 +1,208 @@
+#!/usr/bin/bash
+gum confirm "$(gum style --border normal --margin '1' --padding '1 2' --border-foreground 212 "$(gum style --foreground 212 '                        mysssym
+                      mysssym
+                    mysssym
+                  mysssym
+                mysssyd
+              mysssyd    N
+            mysssyd    mysym
+          mysssyd      dysssym
+        mysssyd          dysssym
+      mysssyd              dysssym
+      mysssyd              dysssym
+        mysssyd          dysssym
+          mysssyd      dysssym
+            mysym    dysssym
+              N    dysssym
+                 dysssym
+               dysssym
+             dysssym
+           dysssym
+         dysssym')" "" "Welcome to jade-tui" "Ready to make your Crystal installation... ready?")" && CONTINUE=true
+if [[ $CONTINUE != "true" ]]; then
+	echo "Exiting. Have a good day!"
+	exit
+fi
+
+timezone=$(timedatectl list-timezones | gum filter --placeholder "select a timezone")
+echo "timezone: $timezone"
+
+keymap=$(localectl list-keymaps | gum filter --placeholder "select a keymap")
+echo "keymap: $keymap"
+
+locale=$(cat locales | gum filter --placeholder "select a locale")
+echo "locale: $locale"
+
+clear
+gum style --border normal --margin "1" --padding "1 2" --border-foreground 212 "Please enter your username"
+username=$(gum input --placeholder "Please enter your username")
+echo "username: $username"
+
+clear
+gum style --border normal --margin "1" --padding "1 2" --border-foreground 212 "Select a default shell"
+shell=$(gum choose --limit 1 fish zsh bash)
+
+matches="false"
+passwrong="false"
+while [[ "$matches" == "false" ]]; do
+	clear
+	if [[ "$passwrong" == "true" ]]; then
+		gum style --border normal --margin "1" --padding "1 2" --border-foreground 212 "Passwords did not match, please type the password again"
+	else
+		gum style --border normal --margin "1" --padding "1 2" --border-foreground 212 "Now enter your password"
+	fi
+	password=$(gum input --password --placeholder "Please enter a password")
+	echo "password: $password"
+	clear
+	gum style --border normal --margin "1" --padding "1 2" --border-foreground 212 "Verify your password"
+	password_verif=$(gum input --password --placeholder "Type your password again")
+	if [[ "$password" == "$password_verif" ]]; then
+		matches="true"
+	else
+		passwrong="true"
+	fi
+done
+crypt_password=$(openssl passwd -crypt ${password})
+
+clear
+different_root_password=true
+gum confirm "$(gum style --border normal --margin '1' --padding '1 2' --border-foreground 212 'Use same password for root?')" && different_root_password=false
+if [[ $different_root_password != "true" ]]; then
+	echo "same password as user"
+	root_password=${password}
+else
+	root_matches="false"
+	root_passwrong="false"
+	while [[ "$root_matches" == "false" ]]; do
+		clear
+		if [[ "$root_passwrong" == "true" ]]; then
+			gum style --border normal --margin "1" --padding "1 2" --border-foreground 212 "Passwords did not match, please type the root password again"
+		else
+			gum style --border normal --margin "1" --padding "1 2" --border-foreground 212 "Now enter your root password"
+		fi
+		root_password=$(gum input --password --placeholder "Please enter a root password")
+		echo "root password: $root_password"
+		clear
+		gum style --border normal --margin "1" --padding "1 2" --border-foreground 212 "Verify your root password"
+		root_password_verif=$(gum input --password --placeholder "Type your root password again")
+		if [[ "$root_password" == "$root_password_verif" ]]; then
+			root_matches="true"
+		else
+			root_passwrong="true"
+		fi
+	done
+fi
+crypt_root_password=$(openssl passwd -crypt ${root_password})
+
+clear
+gum style --border normal --margin "1" --padding "1 2" --border-foreground 212 "Please enter a hostname"
+hostname=$(gum input --placeholder "Please enter a hostname")
+
+clear
+gum style --border normal --margin "1" --padding "1 2" --border-foreground 212 "Please select the disk to install to" "$(gum style --foreground 212 'WARNING: This will erease the whole disk')"
+disk_dev=$(lsblk -pdo name | grep -v zram | grep -v NAME | grep -v loop | grep -v sr | gum choose --limit 1)
+echo "disk: ${disk_dev}"
+disk=$(echo ${disk_dev} | awk '{ print substr ($0, 6 ) }')
+
+clear
+gum style --border normal --margin "1" --padding "1 2" --border-foreground 212 "Select a desktop to use"
+desktop=$(gum choose --limit 1 gnome kde budgie mate cinnamon lxqt sway i3gaps herbstluftwm awesome bspwm)
+echo "desktop: ${desktop}"
+
+clear
+gum style --border normal --margin "1" --padding "1 2" --border-foreground 212 "Some miscellaneous settings" "Use space to enable/disable"
+misc_settings=$(gum choose --limit 4 "Enable ipv6" "Enable timeshift" "Enable zramd" "Enable flatpak")
+enable_ipv6="false"
+enable_timeshift="false"
+enable_zramd="false"
+enable_flatpak="false"
+if [[ $misc_settings == *"ipv6"* ]]; then
+	enable_ipv6="true"
+fi
+if [[ $misc_settings == *"timeshift"* ]]; then
+	enable_timeshift="true"
+fi
+if [[ $misc_settings == *"zramd"* ]]; then
+	enable_zramd="true"
+fi
+if [[ $misc_settings == *"flatpak"* ]]; then
+	enable_flatpak="true"
+fi
+
+is_uefi=$([ -d /sys/firmware/efi ] && echo true || echo false)
+echo "efi: ${is_uefi}"
+if [[ $is_uefi == "true" ]]; then
+ 	grub_type="grub-efi"
+	grub_location="/boot/efi"
+else
+	grub_type="grub-legacy"
+	grub_location="${disk_dev}"
+fi
+
+clear
+CONTINUE=false
+gum confirm "$(gum style --border normal --margin '1' --padding '1 2' --border-foreground 212 "Summary, is this correct?" "" "keymap: ${keymap}" "timezone: ${timezone}" "locale: ${locale}" "username: ${username}" "password: ${password}" "Default shell: ${shell}" "root-password: ${root_password}" "hostname: ${hostname}" "disk: ${disk}" "desktop: ${desktop}" "ipv6: ${enable_ipv6}" "timeshift: ${enable_timeshift}" "enable zramd: ${enable_zramd}" "enable flatpak: ${enable_flatpak}" "efi: ${is_uefi}")" && CONTINUE=true
+if [[ $CONTINUE != "true" ]]; then
+	echo "Exiting. Have a good day!"
+	exit
+else
+    if [[ $(ls | grep "config.json") ]]; then
+        rm config.json
+    fi
+	echo "{
+		\"partition\": {
+			\"device\": \"${disk}\",
+			\"mode\": \"Auto\",
+			\"efi\": ${is_uefi},
+			\"partitions\": []
+		},
+		\"bootloader\": {
+			\"type\": \"${grub_type}\",
+			\"location\": \"${grub_location}\"
+		},
+		\"locale\": {
+			\"locale\": [
+				\"${locale}\"
+			],
+			\"keymap\": \"${keymap}\",
+			\"timezone\": \"${timezone}\"
+		},
+		\"networking\": {
+			\"hostname\": \"${hostname}\",
+			\"ipv6\": ${enable_ipv6}
+		},
+		\"users\": [
+			{
+				\"name\": \"${username}\",
+				\"password\": \"${crypt_password}\",
+				\"hasroot\": true,
+				\"shell\": \"${shell}\"
+			}
+		],
+		\"rootpass\": \"${crypt_root_password}\",
+		\"desktop\": \"${desktop}\",
+		\"timeshift\": ${enable_timeshift},
+		\"extra_packages\": [
+            \"fish\"
+        ],
+		\"flatpak\": ${enable_flatpak},
+		\"zramd\": ${enable_zramd},
+		\"unakite\": {
+			\"enable\": false,
+			\"root\": \"/dev/null\",
+			\"oldroot\": \"${disk}\",
+			\"efidir\": \"/dev/null\",
+			\"bootdev\": \"/dev/null\"
+		},
+		\"kernel\": \"linux\"
+	}" > config.json
+fi
+
+CONTINUE=false
+gum confirm "$(gum style --border normal --margin '1' --padding '1 2' --border-foreground 212 "Are you sure you want to install?" "$(gum style --foreground 212 'WARNING: This will erease the whole disk')")" && CONTINUE=true
+if [[ $CONTINUE != "true" ]]; then
+	echo "Exiting. Have a good day!"
+	exit
+else
+	sudo jade config config.json
+fi
