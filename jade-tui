@@ -1,4 +1,6 @@
 #!/usr/bin/bash
+
+# Welcome screen
 gum confirm "$(gum style --border normal --margin '1' --padding '1 2' --border-foreground 212 "$(gum style --foreground 212 '                        mysssym
                       mysssym
                     mysssym
@@ -24,18 +26,22 @@ if [[ $CONTINUE != "true" ]]; then
 	exit
 fi
 
+# Select timezone, keymap, locale
 timezone=$(timedatectl list-timezones | gum filter --placeholder "select a timezone")
 keymap=$(localectl list-keymaps | gum filter --placeholder "select a keymap")
 locale=$(cat locales | gum filter --placeholder "select a locale")
 
+# Username
 clear
 gum style --border normal --margin "1" --padding "1 2" --border-foreground 212 "Please enter your username"
 username=$(gum input --placeholder "Please enter your username")
 
+# Default shell
 clear
 gum style --border normal --margin "1" --padding "1 2" --border-foreground 212 "Select a default shell"
 shell=$(gum choose --limit 1 fish zsh bash)
 
+# User password
 matches="false"
 passwrong="false"
 while [[ "$matches" == "false" ]]; do
@@ -57,11 +63,12 @@ while [[ "$matches" == "false" ]]; do
 done
 crypt_password=$(openssl passwd -crypt ${password})
 
+# Root password
 clear
 different_root_password=true
 gum confirm "$(gum style --border normal --margin '1' --padding '1 2' --border-foreground 212 'Use same password for root?')" && different_root_password=false
 if [[ $different_root_password != "true" ]]; then
-	root_password=${password}
+	root_password=${password} # set root password same as user password
 else
 	root_matches="false"
 	root_passwrong="false"
@@ -85,19 +92,23 @@ else
 fi
 crypt_root_password=$(openssl passwd -crypt ${root_password})
 
+# Hostname
 clear
 gum style --border normal --margin "1" --padding "1 2" --border-foreground 212 "Please enter a hostname"
 hostname=$(gum input --placeholder "Please enter a hostname")
 
+# Select disk
 clear
 gum style --border normal --margin "1" --padding "1 2" --border-foreground 212 "Please select the disk to install to" "$(gum style --foreground 212 'WARNING: This will erease the whole disk')"
 disk_dev=$(lsblk -pdo name | grep -v zram | grep -v NAME | grep -v loop | grep -v sr | gum choose --limit 1)
 disk=$(echo ${disk_dev} | awk '{ print substr ($0, 6 ) }')
 
+# Select desktop
 clear
 gum style --border normal --margin "1" --padding "1 2" --border-foreground 212 "Select a desktop to use"
 desktop=$(gum choose --limit 1 gnome kde budgie mate cinnamon lxqt sway i3gaps herbstluftwm awesome bspwm)
 
+# misc settings
 clear
 gum style --border normal --margin "1" --padding "1 2" --border-foreground 212 "Some miscellaneous settings" "Use space to enable/disable"
 misc_settings=$(gum choose --limit 4 "Enable ipv6" "Enable timeshift" "Enable zramd" "Enable flatpak")
@@ -118,6 +129,7 @@ if [[ $misc_settings == *"flatpak"* ]]; then
 	enable_flatpak="true"
 fi
 
+# Check if system is uefi
 is_uefi=$([ -d /sys/firmware/efi ] && echo true || echo false)
 if [[ $is_uefi == "true" ]]; then
  	grub_type="grub-efi"
@@ -127,6 +139,7 @@ else
 	grub_location="${disk_dev}"
 fi
 
+# Summary
 clear
 CONTINUE=false
 gum confirm "$(gum style --border normal --margin '1' --padding '1 2' --border-foreground 212 "Summary, is this correct?" "" "keymap: ${keymap}" "timezone: ${timezone}" "locale: ${locale}" "username: ${username}" "password: ${password}" "Default shell: ${shell}" "root-password: ${root_password}" "hostname: ${hostname}" "disk: ${disk}" "desktop: ${desktop}" "ipv6: ${enable_ipv6}" "timeshift: ${enable_timeshift}" "enable zramd: ${enable_zramd}" "enable flatpak: ${enable_flatpak}" "efi: ${is_uefi}")" && CONTINUE=true
@@ -134,9 +147,11 @@ if [[ $CONTINUE != "true" ]]; then
 	echo "Exiting. Have a good day!"
 	exit
 else
+	# Remove config.json if it exists
     if [[ $(ls | grep "config.json") ]]; then
         rm config.json
     fi
+	# Make config.json
 	echo "{
 		\"partition\": {
 			\"device\": \"${disk}\",
@@ -186,6 +201,7 @@ else
 	}" > config.json
 fi
 
+# Ask to install
 CONTINUE=false
 gum confirm "$(gum style --border normal --margin '1' --padding '1 2' --border-foreground 212 "Are you sure you want to install?" "$(gum style --foreground 212 'WARNING: This will erease the whole disk')")" && CONTINUE=true
 if [[ $CONTINUE != "true" ]]; then
