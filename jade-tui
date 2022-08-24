@@ -61,14 +61,14 @@ while [[ "$matches" == "false" ]]; do
 		passwrong="true"
 	fi
 done
-crypt_password=$(openssl passwd -crypt ${password})
+crypt_password=$(openssl passwd -crypt $password)
 
 # Root password
 clear
 different_root_password=true
 gum confirm "$(gum style --border normal --margin '1' --padding '1 2' --border-foreground 212 'Use same password for root?')" && different_root_password=false
 if [[ $different_root_password != "true" ]]; then
-	root_password=${password} # set root password same as user password
+	root_password=$password # set root password same as user password
 else
 	root_matches="false"
 	root_passwrong="false"
@@ -101,7 +101,7 @@ hostname=$(gum input --placeholder "Please enter a hostname")
 clear
 gum style --border normal --margin "1" --padding "1 2" --border-foreground 212 "Please select the disk to install to" "$(gum style --foreground 212 'WARNING: This will erease the whole disk')"
 disk_dev=$(lsblk -pdo name | grep -v zram | grep -v NAME | grep -v loop | grep -v sr | gum choose --limit 1)
-disk=$(echo ${disk_dev} | awk '{ print substr ($0, 6 ) }')
+disk=$(echo $disk_dev | awk '{ print substr ($0, 6 ) }')
 
 # Select desktop
 clear
@@ -136,13 +136,13 @@ if [[ $is_uefi == "true" ]]; then
 	grub_location="/boot/efi"
 else
 	grub_type="grub-legacy"
-	grub_location="${disk_dev}"
+	grub_location="$disk_dev"
 fi
 
 # Summary
 clear
 CONTINUE=false
-gum confirm "$(gum style --border normal --margin '1' --padding '1 2' --border-foreground 212 "Summary, is this correct?" "" "keymap: ${keymap}" "timezone: ${timezone}" "locale: ${locale}" "username: ${username}" "password: ${password}" "Default shell: ${shell}" "root-password: ${root_password}" "hostname: ${hostname}" "disk: ${disk}" "desktop: ${desktop}" "ipv6: ${enable_ipv6}" "timeshift: ${enable_timeshift}" "enable zramd: ${enable_zramd}" "enable flatpak: ${enable_flatpak}" "efi: ${is_uefi}")" && CONTINUE=true
+gum confirm "$(gum style --border normal --margin '1' --padding '1 2' --border-foreground 212 "Summary, is this correct?" "" "keymap: $keymap" "timezone: $timezone" "locale: $locale" "username: $username" "password: $password" "Default shell: $shell" "root-password: $root_password" "hostname: $hostname" "disk: $disk" "desktop: $desktop" "ipv6: $enable_ipv6" "timeshift: $enable_timeshift" "enable zramd: $enable_zramd" "enable flatpak: $enable_flatpak" "efi: $is_uefi")" && CONTINUE=true
 if [[ $CONTINUE != "true" ]]; then
 	echo "Exiting. Have a good day!"
 	exit
@@ -154,46 +154,46 @@ else
 	# Make config.json
 	echo "{
 		\"partition\": {
-			\"device\": \"${disk}\",
+			\"device\": \"$disk\",
 			\"mode\": \"Auto\",
-			\"efi\": ${is_uefi},
+			\"efi\": $is_uefi,
 			\"partitions\": []
 		},
 		\"bootloader\": {
-			\"type\": \"${grub_type}\",
-			\"location\": \"${grub_location}\"
+			\"type\": \"$grub_type\",
+			\"location\": \"$grub_location\"
 		},
 		\"locale\": {
 			\"locale\": [
-				\"${locale}\"
+				\"$locale\"
 			],
-			\"keymap\": \"${keymap}\",
-			\"timezone\": \"${timezone}\"
+			\"keymap\": \"$keymap\",
+			\"timezone\": \"$timezone\"
 		},
 		\"networking\": {
-			\"hostname\": \"${hostname}\",
-			\"ipv6\": ${enable_ipv6}
+			\"hostname\": \"$hostname\",
+			\"ipv6\": $enable_ipv6
 		},
 		\"users\": [
 			{
-				\"name\": \"${username}\",
-				\"password\": \"${crypt_password}\",
+				\"name\": \"$username\",
+				\"password\": \"$crypt_password\",
 				\"hasroot\": true,
-				\"shell\": \"${shell}\"
+				\"shell\": \"$shell\"
 			}
 		],
-		\"rootpass\": \"${crypt_root_password}\",
-		\"desktop\": \"${desktop}\",
-		\"timeshift\": ${enable_timeshift},
+		\"rootpass\": \"$crypt_root_password\",
+		\"desktop\": \"$desktop\",
+		\"timeshift\": $enable_timeshift,
 		\"extra_packages\": [
             \"fish\"
         ],
-		\"flatpak\": ${enable_flatpak},
-		\"zramd\": ${enable_zramd},
+		\"flatpak\": $enable_flatpak,
+		\"zramd\": $enable_zramd,
 		\"unakite\": {
 			\"enable\": false,
 			\"root\": \"/dev/null\",
-			\"oldroot\": \"${disk}\",
+			\"oldroot\": \"$disk\",
 			\"efidir\": \"/dev/null\",
 			\"bootdev\": \"/dev/null\"
 		},
@@ -208,5 +208,5 @@ if [[ $CONTINUE != "true" ]]; then
 	echo "Exiting. Have a good day!"
 	exit
 else
-	sudo jade config /tmp/config.json
+	# sudo jade config /tmp/config.json
 fi
