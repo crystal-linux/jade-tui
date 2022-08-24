@@ -36,11 +36,6 @@ clear
 gum style --border normal --margin "1" --padding "1 2" --border-foreground 212 "Please enter your username"
 username=$(gum input --placeholder "Please enter your username")
 
-# Default shell
-clear
-gum style --border normal --margin "1" --padding "1 2" --border-foreground 212 "Select a default shell"
-shell=$(gum choose --limit 1 fish zsh bash)
-
 # User password
 matches="false"
 passwrong="false"
@@ -91,6 +86,16 @@ else
 	done
 fi
 crypt_root_password=$(openssl passwd -crypt ${root_password})
+
+# Default shell
+clear
+gum style --border normal --margin "1" --padding "1 2" --border-foreground 212 "Select a default shell"
+shell=$(gum choose --limit 1 fish zsh bash)
+if [[ "$shell" == "fish" ]]; then
+	fish_pkg="\"fish\""
+else
+	fish_pkg=""
+fi
 
 # Hostname
 clear
@@ -186,8 +191,8 @@ else
 		\"desktop\": \"$desktop\",
 		\"timeshift\": $enable_timeshift,
 		\"extra_packages\": [
-            \"fish\"
-        ],
+			$fish_pkg
+		],
 		\"flatpak\": $enable_flatpak,
 		\"zramd\": $enable_zramd,
 		\"unakite\": {
