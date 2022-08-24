@@ -149,7 +149,7 @@ if [[ $CONTINUE != "true" ]]; then
 else
 	# Remove config.json if it exists
     if [[ $(ls | grep "/tmp/config.json") ]]; then
-        rm config.json
+        rm /tmp/config.json
     fi
 	# Make config.json
 	echo "{
