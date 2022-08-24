@@ -198,7 +198,7 @@ else
 			\"bootdev\": \"/dev/null\"
 		},
 		\"kernel\": \"linux\"
-	}" > config.json
+	}" > /tmp/config.json
 fi
 
 # Ask to install
@@ -208,5 +208,5 @@ if [[ $CONTINUE != "true" ]]; then
 	echo "Exiting. Have a good day!"
 	exit
 else
-	sudo jade config config.json
+	sudo jade config /tmp/config.json
 fi
