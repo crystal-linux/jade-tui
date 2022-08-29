@@ -137,13 +137,65 @@ AutoDisk() {
     disk=$(echo $disk_dev | awk '{ print substr ($0, 6 ) }')
 }
 
+UEFICheck() {
+    is_uefi=$([ -d /sys/firmware/efi ] && echo true || echo false)
+    if [[ $is_uefi == "true" ]]; then
+        grub_type="grub-efi"
+        grub_location="/boot/efi"
+    else
+        grub_type="grub-legacy"
+        grub_location="$disk_dev"
+    fi
+}
+
 ManualDisk() {
+    testing="true"
     # TODO: Add manual disk partitioning support
     # 1. Check if UEFI or BIOS
-    # 2. Show what the user has to create like in arch wiki
-    # 3. Open cfdisk
-    # 4. Ask what partition is what
-    echo TODO
+    if [[ $is_uefi == "true" || $testing == "true" ]]; then
+        # 2. Show what the user has to create like in arch wiki
+        gum style --border normal --margin "1" --padding "1 2" "Example partition layout:"
+        gum style --border normal --foreground $warning_color "Note: swap partition needs to be enabled after install"
+        echo ""
+        echo ""
+
+        EFI_PART=$(gum style --border normal "EFI system partition")
+        EFI_SIZE=$(gum style --border normal "At least 300 MiB")
+        SWAP_PART=$(gum style --border normal "Linux swap")
+        SWAP_SIZE=$(gum style --border normal "More than 512 MiB")
+        ROOT_PART=$(gum style --border normal "Linux x86-64 root")
+        ROOT_SIZE=$(gum style --border normal "Remainder of the device")
+        EFI_ROW=$(gum join "$EFI_PART" "$EFI_SIZE")
+        SWAP_ROW=$(gum join "$SWAP_PART" "$SWAP_SIZE")
+        ROOT_ROW=$(gum join "$ROOT_PART" "$ROOT_SIZE")
+
+        gum join --vertical "$EFI_ROW" "$SWAP_ROW" "$ROOT_ROW"
+
+        # 3. Open cfdisk
+        gum style --border normal --margin "1" --padding "1 2" "Please select the disk to partition" "$(gum style --foreground "$warning_color" 'WARNING: This will erease the whole disk')"
+        disk_dev=$(lsblk -pdo name | grep -v zram | grep -v NAME | grep -v loop | grep -v sr | gum choose --limit 1)
+        clear
+        gum style --border normal --margin "1" --padding "1 2" "Password: crystal"
+        sudo cfdisk $disk_dev
+
+        # 4. Ask what partition is what
+        clear
+        gum style --border normal --margin "1" --padding "1 2" "Select EFI partition"
+        efi_part=$(lsblk | grep -v zram | grep -v NAME | grep -v loop | grep -v sr | gum choose --limit 1)
+        clear
+        gum style --border normal --margin "1" --padding "1 2" "Select EFI partition mountpoint"
+        efi_part_mount=$(gum choose --limit 1 "none" "/" "/boot" "/boot/efi" "/home" "/opt" "/tmp" "/usr" "var")
+        clear
+        gum style --border normal --margin "1" --padding "1 2" "Select root partition"
+        root_part=$(lsblk | grep -v zram | grep -v NAME | grep -v loop | grep -v sr | gum choose --limit 1)
+        clear
+        gum style --border normal --margin "1" --padding "1 2" "Select root partition mountpoint"
+        root_part_mount=$(gum choose --limit 1 "none" "/" "/boot" "/boot/efi" "/home" "/opt" "/tmp" "/usr" "var")
+
+        # TODO: remove junk from efi_part, root_part
+    else
+        echo Manual BIOS partitioning is not supported yet
+    fi
 }
 
 Desktop() {
@@ -174,16 +226,6 @@ Misc() {
     fi
 }
 
-UEFICheck() {
-    is_uefi=$([ -d /sys/firmware/efi ] && echo true || echo false)
-    if [[ $is_uefi == "true" ]]; then
-        grub_type="grub-efi"
-        grub_location="/boot/efi"
-    else
-        grub_type="grub-legacy"
-        grub_location="$disk_dev"
-    fi
-}
 
 Summary() {
     clear
@@ -198,52 +240,52 @@ Summary() {
         fi
         # Make config.json
         echo "{
-		\"partition\": {
-			\"device\": \"$disk\",
-			\"mode\": \"Auto\",
-			\"efi\": $is_uefi,
-			\"partitions\": []
-		},
-		\"bootloader\": {
-			\"type\": \"$grub_type\",
-			\"location\": \"$grub_location\"
-		},
-		\"locale\": {
-			\"locale\": [
-				\"$locale\"
-			],
-			\"keymap\": \"$keymap\",
-			\"timezone\": \"$timezone\"
-		},
-		\"networking\": {
-			\"hostname\": \"$hostname\",
-			\"ipv6\": $enable_ipv6
-		},
-		\"users\": [
-			{
-				\"name\": \"$username\",
-				\"password\": \"$crypt_password\",
-				\"hasroot\": true,
-				\"shell\": \"$shell\"
-			}
-		],
-		\"rootpass\": \"$crypt_root_password\",
-		\"desktop\": \"$desktop\",
-		\"timeshift\": $enable_timeshift,
-		\"extra_packages\": [
-			$fish_pkg
-		],
-		\"flatpak\": $enable_flatpak,
-		\"zramd\": $enable_zramd,
-		\"unakite\": {
-			\"enable\": false,
-			\"root\": \"/dev/null\",
-			\"oldroot\": \"$disk\",
-			\"efidir\": \"/dev/null\",
-			\"bootdev\": \"/dev/null\"
-		},
-		\"kernel\": \"linux\"
-	}" > /tmp/config.json
+        \"partition\": {
+            \"device\": \"$disk\",
+            \"mode\": \"Auto\",
+            \"efi\": $is_uefi,
+            \"partitions\": []
+        },
+        \"bootloader\": {
+            \"type\": \"$grub_type\",
+            \"location\": \"$grub_location\"
+        },
+        \"locale\": {
+            \"locale\": [
+                \"$locale\"
+            ],
+            \"keymap\": \"$keymap\",
+            \"timezone\": \"$timezone\"
+        },
+        \"networking\": {
+            \"hostname\": \"$hostname\",
+            \"ipv6\": $enable_ipv6
+        },
+        \"users\": [
+            {
+                \"name\": \"$username\",
+                \"password\": \"$crypt_password\",
+                \"hasroot\": true,
+                \"shell\": \"$shell\"
+            }
+        ],
+        \"rootpass\": \"$crypt_root_password\",
+        \"desktop\": \"$desktop\",
+        \"timeshift\": $enable_timeshift,
+        \"extra_packages\": [
+            $fish_pkg
+        ],
+        \"flatpak\": $enable_flatpak,
+        \"zramd\": $enable_zramd,
+        \"unakite\": {
+            \"enable\": false,
+            \"root\": \"/dev/null\",
+            \"oldroot\": \"$disk\",
+            \"efidir\": \"/dev/null\",
+            \"bootdev\": \"/dev/null\"
+        },
+        \"kernel\": \"linux\"
+    }" > /tmp/config.json
     fi
 }
 
@@ -274,6 +316,7 @@ RootPassword
 Shell
 Hostname
 AutoDisk # TODO: Add manual partitioning support
+# ManualDisk
 Desktop
 Misc
 UEFICheck
