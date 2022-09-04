@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 
-version="2.0.0 beta"
+version="2.0.0 manual alpha"
 
 main_color="#A900FF"
 warning_color="#ff0000"
@@ -130,13 +130,6 @@ Hostname() {
     hostname=$(gum input --placeholder "Please enter a hostname")
 }
 
-AutoDisk() {
-    clear
-    gum style --border normal --margin "1" --padding "1 2" "Please select the disk to install to" "$(gum style --foreground "$warning_color" 'WARNING: This will erease the whole disk')"
-    disk_dev=$(lsblk -pdo name | grep -v zram | grep -v NAME | grep -v loop | grep -v sr | gum choose --limit 1)
-    disk=$(echo $disk_dev | awk '{ print substr ($0, 6 ) }')
-}
-
 UEFICheck() {
     is_uefi=$([ -d /sys/firmware/efi ] && echo true || echo false)
     if [[ $is_uefi == "true" ]]; then
@@ -148,8 +141,29 @@ UEFICheck() {
     fi
 }
 
+Partition() {
+    clear
+    CONTINUE=false
+    gum confirm "$(gum style --border normal --margin '1' --padding '1 2' 'Auto partition?')" && CONTINUE="true"
+    if [[ $CONTINUE == "true" ]]; then
+        AutoDisk
+    else
+        ManualDisk
+    fi
+}
+
+AutoDisk() {
+    clear
+    gum style --border normal --margin "1" --padding "1 2" "Please select the disk to install to" "$(gum style --foreground "$warning_color" 'WARNING: This will erease the whole disk')"
+    disk_dev=$(lsblk -pdo name | grep -v zram | grep -v NAME | grep -v loop | grep -v sr | gum choose --limit 1)
+    disk=$(echo $disk_dev | awk '{ print substr ($0, 6 ) }')
+    partition_type="Auto"
+}
+
 ManualDisk() {
+    # REMOVE AFTER TESTING!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     testing="true"
+
     # TODO: Add manual disk partitioning support
     # 1. Check if UEFI or BIOS
     if [[ $is_uefi == "true" || $testing == "true" ]]; then
@@ -171,28 +185,36 @@ ManualDisk() {
 
         gum join --vertical "$EFI_ROW" "$SWAP_ROW" "$ROOT_ROW"
 
-        # 3. Open cfdisk
-        gum style --border normal --margin "1" --padding "1 2" "Please select the disk to partition" "$(gum style --foreground "$warning_color" 'WARNING: This will erease the whole disk')"
-        disk_dev=$(lsblk -pdo name | grep -v zram | grep -v NAME | grep -v loop | grep -v sr | gum choose --limit 1)
-        clear
-        gum style --border normal --margin "1" --padding "1 2" "Password: crystal"
-        sudo cfdisk $disk_dev
+        CONTINUE=false
+        gum confirm "$(gum style --border normal --margin '1' --padding '1 2' 'Continue?')" && CONTINUE="true"
 
-        # 4. Ask what partition is what
-        clear
-        gum style --border normal --margin "1" --padding "1 2" "Select EFI partition"
-        efi_part=$(lsblk | grep -v zram | grep -v NAME | grep -v loop | grep -v sr | gum choose --limit 1)
-        clear
-        gum style --border normal --margin "1" --padding "1 2" "Select EFI partition mountpoint"
-        efi_part_mount=$(gum choose --limit 1 "none" "/" "/boot" "/boot/efi" "/home" "/opt" "/tmp" "/usr" "var")
-        clear
-        gum style --border normal --margin "1" --padding "1 2" "Select root partition"
-        root_part=$(lsblk | grep -v zram | grep -v NAME | grep -v loop | grep -v sr | gum choose --limit 1)
-        clear
-        gum style --border normal --margin "1" --padding "1 2" "Select root partition mountpoint"
-        root_part_mount=$(gum choose --limit 1 "none" "/" "/boot" "/boot/efi" "/home" "/opt" "/tmp" "/usr" "var")
+        if [[ $CONTINUE == "true" ]]; then
+            # 3. Open cfdisk
+            gum style --border normal --margin "1" --padding "1 2" "Please select the disk to partition" "$(gum style --foreground "$warning_color" 'WARNING: This will erease the whole disk')"
+            disk_dev=$(lsblk -pdo name | grep -v zram | grep -v NAME | grep -v loop | grep -v sr | gum choose --limit 1)
+            clear
+            gum style --border normal --margin "1" --padding "1 2" "Password: crystal"
+            sudo cfdisk $disk_dev
 
-        # TODO: remove junk from efi_part, root_part
+            # 4. Ask what partition is what
+            clear
+            gum style --border normal --margin "1" --padding "1 2" "Select EFI partition"
+            efi_part=$(lsblk -ro name | grep -v zram | grep -v NAME | grep -v loop | grep -v sr | gum choose --limit 1)
+            clear
+            gum style --border normal --margin "1" --padding "1 2" "Select EFI partition mountpoint"
+            efi_part_mount=$(gum choose --limit 1 "/" "/boot" "/boot/efi" "/home" "/opt" "/tmp" "/usr" "var")
+            clear
+            gum style --border normal --margin "1" --padding "1 2" "Select root partition"
+            root_part=$(lsblk -ro name| grep -v zram | grep -v NAME | grep -v loop | grep -v sr | gum choose --limit 1)
+            clear
+            gum style --border normal --margin "1" --padding "1 2" "Select root partition mountpoint"
+            root_part_mount=$(gum choose --limit 1 "/" "/boot" "/boot/efi" "/home" "/opt" "/tmp" "/usr" "var")
+
+            partition_type="Manual"
+            partitions="\"$efi_part_mount:$efi_part:fat\", \"$root_part_mount:$root_part:btrfs\""
+        else
+            Partition
+        fi
     else
         echo Manual BIOS partitioning is not supported yet
     fi
@@ -226,7 +248,6 @@ Misc() {
     fi
 }
 
-
 Summary() {
     clear
     CONTINUE=false
@@ -242,9 +263,9 @@ Summary() {
         echo "{
         \"partition\": {
             \"device\": \"$disk\",
-            \"mode\": \"Auto\",
+            \"mode\": \"$partition_type\",
             \"efi\": $is_uefi,
-            \"partitions\": []
+            \"partitions\": [$partitions]
         },
         \"bootloader\": {
             \"type\": \"$grub_type\",
@@ -315,10 +336,9 @@ Password
 RootPassword
 Shell
 Hostname
-AutoDisk # TODO: Add manual partitioning support
-# ManualDisk
+UEFICheck
+Partition
 Desktop
 Misc
-UEFICheck
 Summary
 Install
